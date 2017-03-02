@@ -5,6 +5,7 @@ package original; /**
 
 import controller.Constants;
 import controller.PaymentController;
+import controller.SecurityController;
 import jdk.nashorn.api.scripting.JSObject;
 import org.jpos.iso.ISODate;
 import org.jpos.iso.ISOException;
@@ -20,6 +21,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import javax.jms.JMSException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -55,7 +58,7 @@ public class JposClient {
 
             JSONObject data = (JSONObject) (new JSONParser().parse(message));
 
-            data.put("name_on_card", "Mohamed Nifras");
+/*            data.put("name_on_card", "Mohamed Nifras");
 
             data.put("card_type", "visa");
             data.put("card_number", "4032039105422911");
@@ -63,7 +66,7 @@ public class JposClient {
             data.put("expiry_year", "2021");
             data.put("cvv", "123");
             data.put("orderID", "12324");
-            data.put("corre-id", "123226651942");
+            data.put("corre-id", "123226651942");*/
 
             String name_on_card = data.get("name_on_card").toString();
             String primary_account_number= data.get("card_number").toString();
@@ -74,19 +77,20 @@ public class JposClient {
             String card_type = data.get("card_type").toString();
             String  cvv = data.get("cvv").toString();
             String orderID = data.get("orderID").toString();
+            String corre_id = data.get("corre-id").toString();
 
-
+/**  00 	Authorization (Goods and Services)
+ 01 	Cash (ATM)
+ 02 	Debit Adjustment
+ 20 	Refund
+ 30 	Available funds inquiry
+ 31 	Balance inquiry
+ 50 	Payment from account
+ 53 	Payment to account*/
             ISOMsg isoMsg = new ISOMsg();
             isoMsg.setMTI("0200");
             isoMsg.set(2, primary_account_number);
-            isoMsg.set(3, "53"); /**  00 	Authorization (Goods and Services)
-             01 	Cash (ATM)
-             02 	Debit Adjustment
-             20 	Refund
-             30 	Available funds inquiry
-             31 	Balance inquiry
-             50 	Payment from account
-             53 	Payment to account*/
+            isoMsg.set(3, "53");
             isoMsg.set(4, amount); //amount
             isoMsg.set(7, ISODate.getDateTime(new Date())); // transaction time
             isoMsg.set(11, String.valueOf(System.currentTimeMillis() % 1000000)); //system trace
@@ -101,9 +105,16 @@ public class JposClient {
             isoMsg.set(41, "T1603307"); //CARD ACCEPTOR TERMINAL IDENTIFICACION
             isoMsg.set(42, "D1342344");//Card acceptor identification code
             isoMsg.set(49, "144"); // sri lanka transaction currency code
-            //isoMsg.set(70, "301"); //network management
             isoMsg.set(100, orderID); // transaction number
             isoMsg.set(98, name_on_card);
+            isoMsg.set(121,corre_id );
+            try {
+                isoMsg.set(127, SecurityController.encrypt(Constants.key));
+            } catch (GeneralSecurityException e) {
+                e.printStackTrace();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
 
             /**Response code 39 is
              * ideally CVV is not mandatory for a transaction to complete.
@@ -248,9 +259,24 @@ public class JposClient {
                 ISOMsg reply = channelManager.sendMsg(isoMsg);
                 channelManager.getLog().info("Handshake sent! ");
 
-                if(reply.getMTI().equals(Constants.authenticatedFinancialResponse)) {
+                if(reply.getMTI().equals(Constants.authenticatedFinancialResponse) ) {
                     JSONObject jsonObject = new JSONObject();
-                    jsonObject.put("status", "1");
+                    jsonObject.put("corre-id", reply.getString(121));
+                    try {
+                        String response =reply.getString(39);
+                        if(response.equals("00")){
+                            jsonObject.put("status", "1");
+
+                        }
+                        else {
+                            jsonObject.put("status", "0");
+                        }
+                    }
+                    catch (Exception e){
+                        jsonObject.put("status", "0");
+                    }
+
+
                     paymentController.sendMessage(jsonObject.toString());
                 }
                 else {

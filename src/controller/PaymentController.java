@@ -69,7 +69,7 @@ public class PaymentController implements MessageListener{
             destination = this.session.createTopic(topicName);
             topic = session.createTopic(topicName);
             messageProducer = session.createProducer(topic);
-            messageConsumer = session.createDurableSubscriber(getTopic(), getSubscriptionName());//Constant.operatorID);
+            messageConsumer = session.createConsumer(getDestination());//createDurableSubscriber(getTopic(), getSubscriptionName());//Constant.operatorID);
             messageConsumer.setMessageListener(this);
 
             messageProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
@@ -154,8 +154,9 @@ public class PaymentController implements MessageListener{
 
                 messageText = jsoNmessage[0];
                 String owner = jsoNmessage[1];*/
+                System.out.println("Recieving......:      " + messageText);
                 correlationID = message.getJMSCorrelationID();
-                      System.out.println(messageText);
+
 
             }
 

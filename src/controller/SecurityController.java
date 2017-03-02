@@ -44,7 +44,7 @@ public class SecurityController {
             (byte) 0x10, (byte) 0x12, };
 
     public static void main(String[] args) throws Exception {
-        String originalPassword = "Aman";
+        String originalPassword = "Testing";
         System.out.println("Original password: " + originalPassword);
         String encryptedPassword = encrypt(originalPassword);
         System.out.println("Encrypted password: " + encryptedPassword);
